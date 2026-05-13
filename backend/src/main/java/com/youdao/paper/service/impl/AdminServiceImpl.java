@@ -5,6 +5,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.youdao.paper.common.ResultCode;
 import com.youdao.paper.dto.PasswordLoginRequest;
+import com.youdao.paper.entity.Announcement;
+import com.youdao.paper.entity.ModulePlatform;
+import com.youdao.paper.entity.Platform;
 import com.youdao.paper.entity.PlatformPreset;
 import com.youdao.paper.entity.Preset;
 import com.youdao.paper.entity.RechargeRecord;
@@ -16,6 +19,7 @@ import com.youdao.paper.exception.BusinessException;
 import com.youdao.paper.mapper.SysUserMapper;
 import com.youdao.paper.service.AccountService;
 import com.youdao.paper.service.AdminService;
+import com.youdao.paper.service.AnnouncementService;
 import com.youdao.paper.service.AuthService;
 import com.youdao.paper.service.ConfigService;
 import com.youdao.paper.service.PresetService;
@@ -38,11 +42,12 @@ public class AdminServiceImpl implements AdminService {
     private final AccountService accountService;
     private final ConfigService configService;
     private final RedeemService redeemService;
+    private final AnnouncementService announcementService;
 
     public AdminServiceImpl(SysUserMapper sysUserMapper, AuthService authService,
                             PasswordEncoder passwordEncoder, PresetService presetService,
                             AccountService accountService, ConfigService configService,
-                            RedeemService redeemService) {
+                            RedeemService redeemService, AnnouncementService announcementService) {
         this.sysUserMapper = sysUserMapper;
         this.authService = authService;
         this.passwordEncoder = passwordEncoder;
@@ -50,6 +55,7 @@ public class AdminServiceImpl implements AdminService {
         this.accountService = accountService;
         this.configService = configService;
         this.redeemService = redeemService;
+        this.announcementService = announcementService;
     }
 
     @Override
@@ -168,6 +174,66 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public List<RedeemCode> generateRedeemCodes(BigDecimal amount, int count) {
         return redeemService.generate(amount, count);
+    }
+
+    @Override
+    public List<Announcement> listAnnouncements() {
+        return announcementService.listAll();
+    }
+
+    @Override
+    public Announcement createAnnouncement(Announcement announcement) {
+        return announcementService.create(announcement);
+    }
+
+    @Override
+    public Announcement updateAnnouncement(Long id, Announcement announcement) {
+        return announcementService.update(id, announcement);
+    }
+
+    @Override
+    public void deleteAnnouncement(Long id) {
+        announcementService.delete(id);
+    }
+
+    @Override
+    public List<Platform> listPlatforms() {
+        return presetService.listAllPlatforms();
+    }
+
+    @Override
+    public Platform createPlatform(Platform platform) {
+        return presetService.createPlatform(platform);
+    }
+
+    @Override
+    public Platform updatePlatform(Long id, Platform platform) {
+        return presetService.updatePlatform(id, platform);
+    }
+
+    @Override
+    public void deletePlatform(Long id) {
+        presetService.deletePlatform(id);
+    }
+
+    @Override
+    public List<ModulePlatform> listModulePlatforms() {
+        return presetService.listModulePlatforms();
+    }
+
+    @Override
+    public ModulePlatform createModulePlatform(ModulePlatform mp) {
+        return presetService.createModulePlatform(mp);
+    }
+
+    @Override
+    public ModulePlatform updateModulePlatform(Long id, ModulePlatform mp) {
+        return presetService.updateModulePlatform(id, mp);
+    }
+
+    @Override
+    public void deleteModulePlatform(Long id) {
+        presetService.deleteModulePlatform(id);
     }
 
     private UserVO toUserVO(SysUser user) {

@@ -13,15 +13,20 @@ import com.youdao.paper.mapper.RewriteRecordMapper;
 import com.youdao.paper.service.AccountService;
 import com.youdao.paper.service.ConfigService;
 import com.youdao.paper.service.RewriteService;
+import com.youdao.paper.util.DocumentCharCounter;
 import com.youdao.paper.util.RewriteApiClient;
 import com.youdao.paper.vo.RewriteResultVO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+@Slf4j
 @Service
 public class RewriteServiceImpl implements RewriteService {
 
@@ -46,16 +51,31 @@ public class RewriteServiceImpl implements RewriteService {
     @Override
     public RewriteResultVO rewriteText(SysUser user, TextRewriteRequest request) {
         UserAccount account = accountService.getOrCreateAccount(user.getId());
-        BigDecimal minBalance = configService.getDecimal("min_balance");
-        if (account.getBalance().compareTo(minBalance) < 0) {
-            throw new BusinessException(ResultCode.USER_ERROR, "余额不足，请联系客服充值");
+        BigDecimal pricePerKChars = configService.getDecimal("price_per_kchars");
+
+        // 预计算费用，余额不够直接拒绝
+        int estimatedChars = request.getText().length();
+        BigDecimal estimatedCost = BigDecimal.valueOf(estimatedChars)
+                .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
+                .multiply(pricePerKChars)
+                .setScale(4, RoundingMode.HALF_UP);
+        if (account.getBalance().compareTo(estimatedCost) < 0) {
+            throw new BusinessException(ResultCode.USER_ERROR,
+                    String.format("余额不足，预计扣费 %.4f 元，当前余额 %.4f 元，请充值", estimatedCost, account.getBalance()));
         }
+
         JSONObject response = rewriteApiClient.paraphraseText(request.getText(), request.getPreset());
         RewriteResultVO result = mapResult(response);
-        BigDecimal apiCost = toBigDecimal(response, "cost");
-        if (apiCost == null) apiCost = BigDecimal.ZERO;
-        BigDecimal userCost = apiCost.multiply(configService.getDecimal("price_markup"))
+
+        // 用API返回的精确字符数计费
+        int charCount = response.getInt("characters_count", estimatedChars);
+        BigDecimal userCost = BigDecimal.valueOf(charCount)
+                .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
+                .multiply(pricePerKChars)
                 .setScale(4, RoundingMode.HALF_UP);
+        log.info("[文本改写] 预估字符={}, 实际字符={}, 每千字单价={} 元, 实际扣费={} 元",
+                estimatedChars, charCount, pricePerKChars, userCost);
+
         BigDecimal balanceBefore = account.getBalance();
         UserAccount updated = accountService.deductBalance(user.getId(), userCost);
         RewriteRecord record = new RewriteRecord();
@@ -64,7 +84,7 @@ public class RewriteServiceImpl implements RewriteService {
         record.setRewriteMode(response.getStr("preset_used"));
         record.setOriginalText(response.getStr("original_text", request.getText()));
         record.setParaphrasedText(response.getStr("paraphrased_text"));
-        record.setTotalCharacters(response.getInt("characters_count"));
+        record.setTotalCharacters(charCount);
         record.setCost(userCost);
         record.setApiResponse(response.toString());
         record.setBalanceBefore(balanceBefore);
@@ -76,18 +96,48 @@ public class RewriteServiceImpl implements RewriteService {
     }
 
     @Override
+    public Map<String, Object> precheckDocument(SysUser user, MultipartFile file) {
+        UserAccount account = accountService.getOrCreateAccount(user.getId());
+        BigDecimal pricePerKChars = configService.getDecimal("price_per_kchars");
+        int charCount = DocumentCharCounter.count(file);
+        BigDecimal estimatedCost = BigDecimal.valueOf(charCount)
+                .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
+                .multiply(pricePerKChars)
+                .setScale(4, RoundingMode.HALF_UP);
+        Map<String, Object> result = new HashMap<>();
+        result.put("charCount", charCount);
+        result.put("estimatedCost", estimatedCost);
+        result.put("balance", account.getBalance());
+        return result;
+    }
+
+    @Override
     public RewriteResultVO rewriteDocument(SysUser user, MultipartFile file, String preset) {
         UserAccount account = accountService.getOrCreateAccount(user.getId());
-        BigDecimal minBalance = configService.getDecimal("min_balance");
-        if (account.getBalance().compareTo(minBalance) < 0) {
-            throw new BusinessException(ResultCode.USER_ERROR, "余额不足，请联系客服充值");
+        BigDecimal pricePerKChars = configService.getDecimal("price_per_kchars");
+
+        int estimatedChars = DocumentCharCounter.count(file);
+        BigDecimal estimatedCost = BigDecimal.valueOf(estimatedChars)
+                .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
+                .multiply(pricePerKChars)
+                .setScale(4, RoundingMode.HALF_UP);
+        if (account.getBalance().compareTo(estimatedCost) < 0) {
+            throw new BusinessException(ResultCode.USER_ERROR,
+                    String.format("余额不足，预计扣费 %.4f 元，当前余额 %.4f 元，请充值", estimatedCost, account.getBalance()));
         }
+
         JSONObject response = rewriteApiClient.paraphraseDocument(file, preset, rewriteApiProperties.getDefaultPresetEn());
         RewriteResultVO result = mapResult(response);
-        BigDecimal apiCost = firstNonNullBigDecimal(response, "actual_cost", "cost");
-        if (apiCost == null) apiCost = BigDecimal.ZERO;
-        BigDecimal userCost = apiCost.multiply(configService.getDecimal("price_markup"))
+
+        // 用API返回的精确字符数计费
+        int charCount = response.getInt("total_characters", estimatedChars);
+        BigDecimal userCost = BigDecimal.valueOf(charCount)
+                .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
+                .multiply(pricePerKChars)
                 .setScale(4, RoundingMode.HALF_UP);
+        log.info("[文档改写] 解析字符={}, API返回字符={}, 每千字单价={} 元, 实际扣费={} 元",
+                estimatedChars, charCount, pricePerKChars, userCost);
+
         BigDecimal balanceBefore = account.getBalance();
         UserAccount updated = accountService.deductBalance(user.getId(), userCost);
         RewriteRecord record = new RewriteRecord();
@@ -98,7 +148,7 @@ public class RewriteServiceImpl implements RewriteService {
         record.setParaphrasedFilename(extractFilename(response.getStr("paraphrased_url")));
         record.setOriginalFileUrl(response.getStr("original_url"));
         record.setParaphrasedFileUrl(response.getStr("paraphrased_url"));
-        record.setTotalCharacters(response.getInt("total_characters"));
+        record.setTotalCharacters(charCount);
         record.setCost(userCost);
         record.setApiResponse(response.toString());
         record.setBalanceBefore(balanceBefore);

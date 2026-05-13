@@ -3,6 +3,9 @@ package com.youdao.paper.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.youdao.paper.dto.PasswordLoginRequest;
+import com.youdao.paper.entity.Announcement;
+import com.youdao.paper.entity.ModulePlatform;
+import com.youdao.paper.entity.Platform;
 import com.youdao.paper.entity.PlatformPreset;
 import com.youdao.paper.entity.Preset;
 import com.youdao.paper.entity.RechargeRecord;
@@ -51,4 +54,28 @@ public interface AdminService {
     PlatformPreset updatePlatformPreset(Long id, PlatformPreset pp);
 
     void deletePlatformPreset(Long id);
+
+    List<Platform> listPlatforms();
+
+    Platform createPlatform(Platform platform);
+
+    Platform updatePlatform(Long id, Platform platform);
+
+    void deletePlatform(Long id);
+
+    List<ModulePlatform> listModulePlatforms();
+
+    ModulePlatform createModulePlatform(ModulePlatform mp);
+
+    ModulePlatform updateModulePlatform(Long id, ModulePlatform mp);
+
+    void deleteModulePlatform(Long id);
+
+    List<Announcement> listAnnouncements();
+
+    Announcement createAnnouncement(Announcement announcement);
+
+    Announcement updateAnnouncement(Long id, Announcement announcement);
+
+    void deleteAnnouncement(Long id);
 }

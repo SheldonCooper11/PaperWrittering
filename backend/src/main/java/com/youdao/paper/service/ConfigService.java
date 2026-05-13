@@ -60,8 +60,8 @@ public class ConfigService {
     }
 
     private void ensureDefaults() {
-        setIfMissing("price_markup", "1.4", "用户加价倍率");
         setIfMissing("min_balance", "1.0", "最低余额阈值");
+        setIfMissing("price_per_kchars", "1.5", "每千字单价(元)");
     }
 
     private void setIfMissing(String key, String defaultVal, String desc) {

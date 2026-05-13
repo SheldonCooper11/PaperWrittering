@@ -25,7 +25,10 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
             "/api/auth/password/reset",
             "/api/sms/send",
             "/api/admin/login",
-            "/api/rewrite/presets"
+            "/api/rewrite/presets",
+            "/api/rewrite/platforms",
+            "/api/detection/options",
+            "/api/announcements"
     );
 
     private final AuthService authService;

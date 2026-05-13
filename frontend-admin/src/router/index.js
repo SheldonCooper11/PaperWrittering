@@ -5,6 +5,8 @@ import UserManageView from '@/views/UserManageView.vue'
 import PresetManageView from '@/views/PresetManageView.vue'
 import ConfigManageView from '@/views/ConfigManageView.vue'
 import RedeemManageView from '@/views/RedeemManageView.vue'
+import AnnounceManageView from '@/views/AnnounceManageView.vue'
+import PlatformManageView from '@/views/PlatformManageView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -13,8 +15,10 @@ const router = createRouter({
     { path: '/', component: AdminLayout, redirect: '/users', children: [
       { path: 'users', name: 'users', component: UserManageView },
       { path: 'presets', name: 'presets', component: PresetManageView },
+      { path: 'platforms', name: 'platforms', component: PlatformManageView },
       { path: 'redeem', name: 'redeem', component: RedeemManageView },
       { path: 'config', name: 'config', component: ConfigManageView },
+      { path: 'announcements', name: 'announcements', component: AnnounceManageView },
     ] },
   ],
 })

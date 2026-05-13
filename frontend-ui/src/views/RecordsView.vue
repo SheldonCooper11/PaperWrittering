@@ -5,6 +5,7 @@
       <RouterLink to="/rewrite">降重/降AI率/检测AI率 🔥</RouterLink>
       <RouterLink class="active" to="/records">改写记录</RouterLink>
       <RouterLink to="/redeem">卡密兑换</RouterLink>
+      <AnnouncementBell />
       <el-dropdown v-if="userStore.token" trigger="click">
         <span class="login username">{{ userStore.userInfo?.username }} ▾</span>
         <template #dropdown>
@@ -47,6 +48,7 @@
 import { onMounted, ref } from 'vue'
 import { rewriteRecords } from '@/api/rewrite'
 import { useUserStore } from '@/stores/user'
+import AnnouncementBell from '@/components/AnnouncementBell.vue'
 
 const userStore = useUserStore()
 const records = ref([])

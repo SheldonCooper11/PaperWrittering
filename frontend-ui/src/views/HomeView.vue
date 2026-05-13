@@ -5,6 +5,7 @@
       <RouterLink to="/rewrite">降重/降AI率/检测AI率 🔥</RouterLink>
       <RouterLink to="/records">改写记录</RouterLink>
       <RouterLink to="/redeem">卡密兑换</RouterLink>
+      <AnnouncementBell />
       <RouterLink v-if="!userStore.token" class="login" to="/login">登录/注册</RouterLink>
       <el-dropdown v-else trigger="click">
         <span class="login username">{{ userStore.userInfo?.username }} ▾</span>
@@ -55,6 +56,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useUserStore } from '@/stores/user'
+import AnnouncementBell from '@/components/AnnouncementBell.vue'
 
 const userStore = useUserStore()
 const canvasRef = ref(null)

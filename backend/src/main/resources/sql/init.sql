@@ -5,8 +5,11 @@ DROP TABLE IF EXISTS redeem_code;
 DROP TABLE IF EXISTS recharge_record;
 DROP TABLE IF EXISTS user_account;
 DROP TABLE IF EXISTS platform_preset;
+DROP TABLE IF EXISTS module_platform;
 DROP TABLE IF EXISTS preset;
+DROP TABLE IF EXISTS platform;
 DROP TABLE IF EXISTS rewrite_record;
+DROP TABLE IF EXISTS announcement;
 DROP TABLE IF EXISTS sys_user;
 
 CREATE TABLE sys_user (
@@ -62,8 +65,8 @@ CREATE TABLE system_config (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置表';
 
 INSERT INTO system_config (config_key, config_value, description) VALUES
-('price_markup', '1.4', '用户加价倍率：API原始费用 × 此倍率 = 用户实际扣费'),
-('min_balance', '1.0', '最低余额(元)：用户余额低于此值时无法改写');
+('min_balance', '1.0', '最低余额(元)：用户余额低于此值时无法改写'),
+('price_per_kchars', '1.5', '每千字单价(元)：实际扣费 = (字符数/1000) × 此单价');
 
 CREATE TABLE user_account (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
@@ -106,6 +109,49 @@ CREATE TABLE redeem_code (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='卡密表';
 
 DROP TABLE IF EXISTS preset;
+
+CREATE TABLE platform (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    name VARCHAR(50) NOT NULL UNIQUE COMMENT '平台名称',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '排序',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 1启用 0禁用',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='平台字典表';
+
+INSERT INTO platform (name, sort_order, status) VALUES
+('知网',1,1),('维普',2,1),('格子达',3,1),('PaperYY',4,1),('笔杆网',5,1),
+('万方',6,1),('PaperPass',7,1),('华宸',8,1),('paperred',9,1),
+('writepass',10,1),('papered',11,1),('大雅',12,1),('朱雀',13,1);
+
+CREATE TABLE module_platform (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    platform_id BIGINT NOT NULL COMMENT '平台ID',
+    module_code VARCHAR(50) NOT NULL COMMENT '模块',
+    module_name VARCHAR(50) NOT NULL COMMENT '模块名称',
+    language VARCHAR(20) NOT NULL DEFAULT 'chinese' COMMENT '语言',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '排序',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_plat_module_lang (platform_id, module_code, language),
+    KEY idx_module (module_code),
+    KEY idx_lang (language)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模块平台关联表';
+
+-- 所有平台默认关联全部模块+语言
+INSERT INTO module_platform (platform_id, module_code, module_name, language, sort_order, status)
+SELECT p.id, m.code, m.name, l.val, 0, 1
+FROM platform p
+CROSS JOIN (
+    SELECT 'repeat_reduce' AS code, '降重复率' AS name
+    UNION ALL SELECT 'ai_reduce', '降AI率'
+    UNION ALL SELECT 'dual_reduce', '降重+降AIGC'
+) m
+CROSS JOIN (
+    SELECT 'chinese' AS val UNION ALL SELECT 'english'
+) l;
 
 CREATE TABLE preset (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
@@ -280,6 +326,23 @@ INSERT INTO platform_preset (platform, module_code, module_name, language, prese
 ('朱雀','repeat_reduce','降重复率','english','jc_muti_language_1',1,1),
 ('朱雀','dual_reduce','降重+降AIGC','chinese','aigcmove_sj_s_1',1,1),
 ('朱雀','dual_reduce','降重+降AIGC','english','5.09en',1,1);
+
+DROP TABLE IF EXISTS announcement;
+
+CREATE TABLE announcement (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    title VARCHAR(200) NOT NULL COMMENT '公告标题',
+    content TEXT NOT NULL COMMENT '公告内容',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 1发布 0草稿',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_status (status),
+    KEY idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告表';
+
+INSERT INTO announcement (title, content, status) VALUES
+('系统正式上线', '论文降重降AI率系统正式上线运行，支持13个主流查重平台的文本和文档改写。用户可通过卡密兑换或联系客服充值余额。', 1),
+('价格说明', '文本改写与文档改写均按字符数计费，实际扣费 = API原始费用 × 1.4（加价倍率）。余额不足1元时无法改写，请及时充值。', 1);
 
 INSERT INTO sys_user (username, phone, password, role, status)
 VALUES ('admin', '18800000000', '$2b$10$nnmpsMrICxCPMswIt2xPzOmY4KnjlgZ81O7z3RzEWp3MRqMgiQJPW', 'ADMIN', 1);

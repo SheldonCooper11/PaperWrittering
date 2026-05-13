@@ -5,6 +5,7 @@
       <RouterLink to="/rewrite">降重/降AI率/检测AI率 🔥</RouterLink>
       <RouterLink to="/records">改写记录</RouterLink>
       <RouterLink class="active" to="/redeem">卡密兑换</RouterLink>
+      <AnnouncementBell />
       <el-dropdown v-if="userStore.token" trigger="click">
         <span class="login username">{{ userStore.userInfo?.username }} ▾</span>
         <template #dropdown>
@@ -36,6 +37,7 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { redeemCode } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
+import AnnouncementBell from '@/components/AnnouncementBell.vue'
 
 const userStore = useUserStore()
 const code = ref('')

@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.youdao.paper.common.ResultVO;
 import com.youdao.paper.dto.PasswordLoginRequest;
+import com.youdao.paper.entity.Announcement;
+import com.youdao.paper.entity.ModulePlatform;
+import com.youdao.paper.entity.Platform;
 import com.youdao.paper.entity.PlatformPreset;
 import com.youdao.paper.entity.Preset;
 import com.youdao.paper.entity.RechargeRecord;
@@ -141,6 +144,69 @@ public class AdminController {
     @DeleteMapping("/platform-presets/{id}")
     public ResultVO<Void> deletePlatformPreset(@PathVariable Long id) {
         adminService.deletePlatformPreset(id);
+        return ResultVO.success("删除成功", null);
+    }
+
+    @GetMapping("/announcements")
+    public ResultVO<List<Announcement>> announcements() {
+        return ResultVO.success(adminService.listAnnouncements());
+    }
+
+    @PostMapping("/announcements")
+    public ResultVO<Announcement> createAnnouncement(@RequestBody Announcement announcement) {
+        return ResultVO.success(adminService.createAnnouncement(announcement));
+    }
+
+    @PutMapping("/announcements/{id}")
+    public ResultVO<Announcement> updateAnnouncement(@PathVariable Long id, @RequestBody Announcement announcement) {
+        return ResultVO.success(adminService.updateAnnouncement(id, announcement));
+    }
+
+    @DeleteMapping("/announcements/{id}")
+    public ResultVO<Void> deleteAnnouncement(@PathVariable Long id) {
+        adminService.deleteAnnouncement(id);
+        return ResultVO.success("删除成功", null);
+    }
+
+    @GetMapping("/platforms")
+    public ResultVO<List<Platform>> platforms() {
+        return ResultVO.success(adminService.listPlatforms());
+    }
+
+    @PostMapping("/platforms")
+    public ResultVO<Platform> createPlatform(@RequestBody Platform platform) {
+        return ResultVO.success(adminService.createPlatform(platform));
+    }
+
+    @PutMapping("/platforms/{id}")
+    public ResultVO<Platform> updatePlatform(@PathVariable Long id, @RequestBody Platform platform) {
+        return ResultVO.success(adminService.updatePlatform(id, platform));
+    }
+
+    @DeleteMapping("/platforms/{id}")
+    public ResultVO<Void> deletePlatform(@PathVariable Long id) {
+        adminService.deletePlatform(id);
+        return ResultVO.success("删除成功", null);
+    }
+
+    @GetMapping("/module-platforms")
+    public ResultVO<List<ModulePlatform>> modulePlatforms() {
+        return ResultVO.success(adminService.listModulePlatforms());
+    }
+
+    @PostMapping("/module-platforms")
+    public ResultVO<ModulePlatform> createModulePlatform(@RequestBody ModulePlatform mp) {
+        return ResultVO.success(adminService.createModulePlatform(mp));
+    }
+
+    @PutMapping("/module-platforms/{id}")
+    public ResultVO<ModulePlatform> updateModulePlatform(@PathVariable Long id, @RequestBody ModulePlatform mp) {
+        return ResultVO.success(adminService.updateModulePlatform(id, mp));
+    }
+
+    @DeleteMapping("/module-platforms/{id}")
+    public ResultVO<Void> deleteModulePlatform(@PathVariable Long id) {
+        adminService.deleteModulePlatform(id);
         return ResultVO.success("删除成功", null);
     }
 }

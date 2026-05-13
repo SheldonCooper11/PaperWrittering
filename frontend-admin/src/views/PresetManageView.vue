@@ -47,6 +47,33 @@
           </el-table-column>
         </el-table>
       </el-tab-pane>
+
+      <el-tab-pane label="平台配置" name="platConfig">
+        <div class="module-section" v-for="mod in configModules" :key="'pc_'+mod.code">
+          <div class="module-head">{{ mod.name }}</div>
+          <el-tabs v-model="platCfgTabs[mod.code]" type="card" class="lang-tabs">
+            <el-tab-pane v-for="lang in languages" :key="lang.value" :label="lang.label" :name="lang.value">
+              <div class="platform-rows">
+                <div class="plat-row" v-for="mp in getConfPlatforms(mod.code, lang.value)" :key="mp.id">
+                  <span class="plat-name">{{ getPlatName(mp.platformId) }}</span>
+                  <div class="plat-presets">
+                    <el-switch :model-value="mp.status === 1" size="small" @change="togglePlatCfg(mp)" />
+                  </div>
+                  <el-button size="small" type="danger" @click="doDeletePlatCfg(mp)">删除</el-button>
+                </div>
+                <div v-if="getConfPlatforms(mod.code, lang.value).length === 0" class="empty-hint">暂无平台</div>
+                <div class="add-row">
+                  <el-select v-model="platCfgNew[mod.code+lang.value]" filterable placeholder="选择平台" size="small" style="width:200px">
+                    <el-option v-for="p in availablePlatForAssign" :key="p.id" :label="p.name" :value="p.id" />
+                  </el-select>
+                  <el-button size="small" type="primary" @click="doAddPlatCfg(mod, lang.value)">添加平台</el-button>
+                </div>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
+      </el-tab-pane>
+
     </el-tabs>
 
     <!-- Preset edit dialog -->
@@ -103,10 +130,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getPresets, updatePreset, createPreset, deletePreset, getPlatformPresets, createPlatformPreset, deletePlatformPreset } from '@/api/admin'
+import { getPresets, updatePreset, createPreset, deletePreset, getPlatformPresets, createPlatformPreset, deletePlatformPreset, getPlatforms, getModulePlatforms, createModulePlatform, updateModulePlatform, deleteModulePlatform } from '@/api/admin'
 
 const activeTab = ref('mapping')
-const platforms = ['知网','维普','格子达','PaperYY','笔杆网','万方','PaperPass','华宸','paperred','writepass','papered','大雅','朱雀']
+const defaultPlatforms = ['知网','维普','格子达','PaperYY','笔杆网','万方','PaperPass','华宸','paperred','writepass','papered','大雅','朱雀']
+const platforms = ref([...defaultPlatforms])
 const languages = [
   { value: 'chinese', label: '中文' },
   { value: 'english', label: 'English' },
@@ -121,6 +149,19 @@ const langTabs = reactive({ repeat_reduce: 'chinese', ai_reduce: 'chinese', dual
 
 const presets = ref([])
 const mappings = ref([])
+const allPlatforms = ref([])
+const modPlats = ref([])
+
+const platCfgTabs = reactive({ repeat_reduce: 'chinese', ai_reduce: 'chinese', dual_reduce: 'chinese' })
+const platCfgNew = reactive({})
+
+const getPlatName = (id) => allPlatforms.value.find(p => p.id === id)?.name || ''
+
+const getConfPlatforms = (modCode, lang) => modPlats.value.filter(mp => mp.moduleCode === modCode && mp.language === lang)
+
+const availablePlatForAssign = computed(() => {
+  return allPlatforms.value.filter(p => p.status === 1)
+})
 
 // preset CRUD
 const dialogVisible = ref(false)
@@ -155,9 +196,17 @@ const filteredAvailable = computed(() => {
 })
 
 const loadAll = async () => {
-  const [pr, pp] = await Promise.all([getPresets(), getPlatformPresets()])
+  const [pr, pp, pl, mp] = await Promise.all([getPresets(), getPlatformPresets(), getPlatforms(), getModulePlatforms()])
   presets.value = pr || []
   mappings.value = pp || []
+  allPlatforms.value = pl || []
+  modPlats.value = mp || []
+  // update platform names for the mapping tab
+  if (pl && pl.length > 0) {
+    const names = pl.map(p => p.name)
+    const merged = new Set([...names, ...defaultPlatforms])
+    platforms.value = [...merged]
+  }
 }
 
 const togglePreset = async (row) => {
@@ -216,6 +265,30 @@ const removeMapping = async (row) => {
   loadAll()
 }
 
+const doAddPlatCfg = async (mod, lang) => {
+  const key = mod.code + lang
+  const pid = platCfgNew[key]
+  if (!pid) return ElMessage.warning('请选择平台')
+  const p = allPlatforms.value.find(x => x.id === pid)
+  await createModulePlatform({ platformId: pid, moduleCode: mod.code, moduleName: mod.name, language: lang, sortOrder: 0, status: 1 })
+  platCfgNew[key] = ''
+  await loadAll()
+  ElMessage.success(`已添加「${p?.name}」`)
+}
+
+const doDeletePlatCfg = async (row) => {
+  await ElMessageBox.confirm('确定移除此平台配置？', '确认', { type: 'warning' })
+  await deleteModulePlatform(row.id)
+  await loadAll()
+  ElMessage.success('已删除')
+}
+
+const togglePlatCfg = async (row) => {
+  const newStatus = row.status === 1 ? 0 : 1
+  await updateModulePlatform(row.id, { ...row, status: newStatus })
+  row.status = newStatus
+}
+
 onMounted(loadAll)
 </script>
 
@@ -234,6 +307,8 @@ onMounted(loadAll)
 .plat-name{font-weight:700;font-size:14px;min-width:70px;color:#333}
 .plat-presets{flex:1;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
 .empty-hint{color:#bbb;font-size:13px}
+.empty-hint-block{color:#bbb;font-size:14px;padding:16px 18px;text-align:center}
+.add-row{display:flex;align-items:center;gap:10px;padding:10px 18px;border-top:1px dashed #e5e5e5}
 
 .edit-body{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-height:420px}
 .edit-body h4{font-size:15px;margin-bottom:10px;color:#333}

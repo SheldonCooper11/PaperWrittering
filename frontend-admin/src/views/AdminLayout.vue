@@ -1,6 +1,6 @@
 <template>
   <el-container class="layout">
-    <el-aside width="220px" class="aside"><div class="logo">论文降重后台</div><el-menu router default-active="/users" background-color="#263445" text-color="#cfd8e3" active-text-color="#fff"><el-menu-item index="/users">用户管理</el-menu-item><el-menu-item index="/presets">预设模式管理</el-menu-item><el-menu-item index="/redeem">卡密管理</el-menu-item><el-menu-item index="/config">系统配置</el-menu-item></el-menu></el-aside>
+    <el-aside width="220px" class="aside"><div class="logo">论文降重后台</div><el-menu router default-active="/users" background-color="#263445" text-color="#cfd8e3" active-text-color="#fff"><el-menu-item index="/users">用户管理</el-menu-item><el-menu-item index="/presets">预设模式管理</el-menu-item><el-menu-item index="/platforms">平台管理</el-menu-item><el-menu-item index="/redeem">卡密管理</el-menu-item><el-menu-item index="/config">系统配置</el-menu-item><el-menu-item index="/announcements">公告管理</el-menu-item></el-menu></el-aside>
     <el-container><el-header class="header"><span>管理员控制台</span><el-button @click="logout">退出登录</el-button></el-header><el-main><RouterView /></el-main></el-container>
   </el-container>
 </template>

@@ -1,12 +1,15 @@
 package com.youdao.paper.controller;
 
+import com.youdao.paper.common.ResultCode;
 import com.youdao.paper.common.ResultVO;
 import com.youdao.paper.dto.TextRewriteRequest;
 import com.youdao.paper.entity.Preset;
 import com.youdao.paper.entity.RewriteRecord;
 import com.youdao.paper.entity.SysUser;
+import com.youdao.paper.exception.BusinessException;
 import com.youdao.paper.service.PresetService;
 import com.youdao.paper.service.RewriteService;
+import com.youdao.paper.util.DocumentCharCounter;
 import com.youdao.paper.vo.RewriteResultVO;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/rewrite")
@@ -38,10 +42,22 @@ public class RewriteController {
         return ResultVO.success(rewriteService.rewriteText(user, request));
     }
 
+    @PostMapping("/document/precheck")
+    public ResultVO<Map<String, Object>> precheckDocument(@RequestAttribute("currentUser") SysUser user,
+                                                          @RequestParam("file") MultipartFile file) {
+        if (!DocumentCharCounter.isSupported(file)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "仅支持 .docx 和 .txt 格式");
+        }
+        return ResultVO.success(rewriteService.precheckDocument(user, file));
+    }
+
     @PostMapping("/document")
     public ResultVO<RewriteResultVO> rewriteDocument(@RequestAttribute("currentUser") SysUser user,
                                                      @RequestParam("file") MultipartFile file,
                                                      @RequestParam String preset) {
+        if (!DocumentCharCounter.isSupported(file)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "仅支持 .docx 和 .txt 格式");
+        }
         return ResultVO.success(rewriteService.rewriteDocument(user, file, preset));
     }
 
@@ -55,5 +71,11 @@ public class RewriteController {
                                           @RequestParam String platform,
                                           @RequestParam(defaultValue = "chinese") String language) {
         return ResultVO.success(presetService.listByModule(module, platform, language));
+    }
+
+    @GetMapping("/platforms")
+    public ResultVO<List<String>> platforms(@RequestParam String module,
+                                            @RequestParam(defaultValue = "chinese") String language) {
+        return ResultVO.success(presetService.getPlatformsByModule(module, language));
     }
 }

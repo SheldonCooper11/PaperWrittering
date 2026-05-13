@@ -10,3 +10,4 @@ export const resetPassword = (data) => request.post('/auth/password/reset', data
 export const getUserInfo = () => request.get('/auth/me')
 export const changePassword = (data) => request.put('/auth/password', data)
 export const redeemCode = (code) => request.post('/redeem', { code })
+export const getAnnouncements = () => request.get('/announcements')
