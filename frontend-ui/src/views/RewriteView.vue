@@ -311,10 +311,17 @@ const handleDetection = async () => {
   } finally { loading.value = false }
 }
 
-const copyResult = async () => {
+const copyResult = () => {
   if (!result.value?.paraphrasedText) return
   try {
-    await navigator.clipboard.writeText(result.value.paraphrasedText)
+    const textarea = document.createElement('textarea')
+    textarea.value = result.value.paraphrasedText
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
     ElMessage.success('已复制到剪贴板')
   } catch {
     ElMessage.error('复制失败，请手动复制')
