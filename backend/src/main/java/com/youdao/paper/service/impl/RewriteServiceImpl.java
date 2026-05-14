@@ -77,8 +77,6 @@ public class RewriteServiceImpl implements RewriteService {
                 .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
                 .multiply(pricePerKChars)
                 .setScale(4, RoundingMode.HALF_UP);
-        log.info("[文本改写] 预估字符={}, 实际字符={}, 每千字单价={} 元, 实际扣费={} 元",
-                estimatedChars, charCount, pricePerKChars, userCost);
 
         BigDecimal balanceBefore = account.getBalance();
         UserAccount updated = accountService.deductBalance(user.getId(), userCost);
@@ -141,8 +139,6 @@ public class RewriteServiceImpl implements RewriteService {
                 .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
                 .multiply(pricePerKChars)
                 .setScale(4, RoundingMode.HALF_UP);
-        log.info("[文档改写] 解析字符={}, API返回字符={}, 每千字单价={} 元, 实际扣费={} 元",
-                estimatedChars, charCount, pricePerKChars, userCost);
 
         BigDecimal balanceBefore = account.getBalance();
         UserAccount updated = accountService.deductBalance(user.getId(), userCost);
