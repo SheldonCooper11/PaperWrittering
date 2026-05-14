@@ -30,6 +30,7 @@ rewrite-api:
   api-key: 你的API密钥
   text-url: https://rapi.ycjg.top/api/v2/paraphrase
   document-url: https://rapi.ycjg.top/api/v2/document/paraphrase
+  detection-url: https://rapi.ycjg.top/api/v2/detection
   default-preset-en: aimove_weipu_english
 
 sms:
