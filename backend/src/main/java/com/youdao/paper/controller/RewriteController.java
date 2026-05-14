@@ -12,7 +12,14 @@ import com.youdao.paper.service.RewriteService;
 import com.youdao.paper.util.DocumentCharCounter;
 import com.youdao.paper.vo.RewriteResultVO;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -54,16 +61,31 @@ public class RewriteController {
     @PostMapping("/document")
     public ResultVO<RewriteResultVO> rewriteDocument(@RequestAttribute("currentUser") SysUser user,
                                                      @RequestParam("file") MultipartFile file,
-                                                     @RequestParam String preset) {
+                                                     @RequestParam String preset,
+                                                     @RequestParam String language,
+                                                     @RequestParam String presetName) {
         if (!DocumentCharCounter.isSupported(file)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "仅支持 .docx 和 .txt 格式");
         }
-        return ResultVO.success(rewriteService.rewriteDocument(user, file, preset));
+        return ResultVO.success(rewriteService.rewriteDocument(user, file, preset, language, presetName));
     }
 
     @GetMapping("/records")
     public ResultVO<List<RewriteRecord>> records(@RequestAttribute("currentUser") SysUser user) {
         return ResultVO.success(rewriteService.records(user));
+    }
+
+    @GetMapping("/records/{id}/download")
+    public ResponseEntity<byte[]> downloadRecord(@RequestAttribute("currentUser") SysUser user,
+                                                 @PathVariable Long id,
+                                                 @RequestParam(defaultValue = "result") String type) {
+        byte[] docx = rewriteService.downloadRecord(user, id, type);
+        String filename = "original".equals(type) ? "原文.docx" : "改写结果.docx";
+        String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded)
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                .body(docx);
     }
 
     @GetMapping("/presets")

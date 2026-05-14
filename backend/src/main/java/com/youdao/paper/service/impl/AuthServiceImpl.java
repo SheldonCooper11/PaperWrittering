@@ -118,10 +118,12 @@ public class AuthServiceImpl implements AuthService {
         if (token == null || token.isBlank()) {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
         }
-        String userId = redisTemplate.opsForValue().get(TOKEN_PREFIX + token.replace("Bearer ", ""));
+        String cleanToken = token.replace("Bearer ", "");
+        String userId = redisTemplate.opsForValue().get(TOKEN_PREFIX + cleanToken);
         if (userId == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
         }
+        redisTemplate.expire(TOKEN_PREFIX + cleanToken, Duration.ofHours(2));
         SysUser user = sysUserMapper.selectById(Long.valueOf(userId));
         if (user == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
@@ -150,7 +152,7 @@ public class AuthServiceImpl implements AuthService {
 
     private LoginVO buildLogin(SysUser user) {
         String token = UUID.randomUUID().toString().replace("-", "");
-        redisTemplate.opsForValue().set(TOKEN_PREFIX + token, String.valueOf(user.getId()), Duration.ofHours(12));
+        redisTemplate.opsForValue().set(TOKEN_PREFIX + token, String.valueOf(user.getId()), Duration.ofHours(2));
         UserAccount account = accountService.getOrCreateAccount(user.getId());
         LoginVO vo = new LoginVO(token, user.getId(), user.getUsername(), user.getPhone(), user.getRole());
         vo.setBalance(account.getBalance());

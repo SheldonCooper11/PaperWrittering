@@ -48,7 +48,7 @@ public class RewriteApiClient {
         }
     }
 
-    public JSONObject paraphraseDocument(MultipartFile multipartFile, String presetZh, String presetEn) {
+    public JSONObject paraphraseDocument(MultipartFile multipartFile, String preset) {
         File tempFile = null;
         try {
             tempFile = File.createTempFile("rewrite-", "-" + multipartFile.getOriginalFilename());
@@ -56,8 +56,7 @@ public class RewriteApiClient {
             HttpResponse response = HttpRequest.post(properties.getDocumentUrl())
                     .header("Authorization", properties.getApiKey())
                     .form("file", tempFile)
-                    .form("preset_zh", presetZh)
-                    .form("preset_en", presetEn)
+                    .form("preset", preset)
                     .form("generate_diff", "false")
                     .timeout(0)
                     .execute();

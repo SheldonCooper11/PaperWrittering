@@ -1,6 +1,6 @@
 <template>
   <header class="topbar">
-    <RouterLink class="brand" to="/">一触即改 写作牛 <span class="icon">🦅</span></RouterLink>
+    <RouterLink class="brand" to="/">有道写作</RouterLink>
     <nav class="nav">
       <RouterLink to="/rewrite">降重/降AI率/检测AI率 🔥</RouterLink>
       <RouterLink to="/records">改写记录</RouterLink>

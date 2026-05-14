@@ -34,4 +34,5 @@ public class RewriteResultVO {
     private Double rewrittenAiRate;
     private Double reduction;
     private Boolean aiDetectionSuccess;
+    private Long recordId;
 }

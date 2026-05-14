@@ -34,12 +34,26 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { getAnnouncements } from '@/api/auth'
 
+const LAST_SEEN_KEY = 'announce_last_seen_id'
+
 const list = ref([])
-const unread = ref(true)
+const unread = ref(false)
 const visible = ref(false)
+
+onMounted(async () => {
+  try {
+    const data = await getAnnouncements()
+    if (data && data.length > 0) {
+      const lastSeenId = localStorage.getItem(LAST_SEEN_KEY)
+      if (!lastSeenId || data[0].id > Number(lastSeenId)) {
+        unread.value = true
+      }
+    }
+  } catch { /* ignore */ }
+})
 
 const openDialog = () => { visible.value = true }
 
@@ -47,6 +61,9 @@ const fetchAnnouncements = async () => {
   try {
     list.value = await getAnnouncements()
     unread.value = false
+    if (list.value.length > 0) {
+      localStorage.setItem(LAST_SEEN_KEY, list.value[0].id)
+    }
   } catch { /* ignore */ }
 }
 

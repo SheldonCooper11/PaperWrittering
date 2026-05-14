@@ -13,6 +13,9 @@ import com.youdao.paper.mapper.RewriteRecordMapper;
 import com.youdao.paper.service.AccountService;
 import com.youdao.paper.service.ConfigService;
 import com.youdao.paper.service.RewriteService;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 import com.youdao.paper.util.DocumentCharCounter;
 import com.youdao.paper.util.RewriteApiClient;
 import com.youdao.paper.vo.RewriteResultVO;
@@ -23,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.HashMap;
+import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Map;
 
@@ -81,7 +85,8 @@ public class RewriteServiceImpl implements RewriteService {
         RewriteRecord record = new RewriteRecord();
         record.setUserId(user.getId());
         record.setRewriteType("TEXT");
-        record.setRewriteMode(response.getStr("preset_used"));
+        record.setLanguage(request.getLanguage());
+        record.setRewriteMode(response.getStr("preset_name", response.getStr("preset_used")));
         record.setOriginalText(response.getStr("original_text", request.getText()));
         record.setParaphrasedText(response.getStr("paraphrased_text"));
         record.setTotalCharacters(charCount);
@@ -90,6 +95,7 @@ public class RewriteServiceImpl implements RewriteService {
         record.setBalanceBefore(balanceBefore);
         record.setBalanceAfter(updated.getBalance());
         rewriteRecordMapper.insert(record);
+        result.setRecordId(record.getId());
         result.setCost(userCost);
         result.setRemainingBalance(updated.getBalance());
         return result;
@@ -112,7 +118,7 @@ public class RewriteServiceImpl implements RewriteService {
     }
 
     @Override
-    public RewriteResultVO rewriteDocument(SysUser user, MultipartFile file, String preset) {
+    public RewriteResultVO rewriteDocument(SysUser user, MultipartFile file, String preset, String language, String presetName) {
         UserAccount account = accountService.getOrCreateAccount(user.getId());
         BigDecimal pricePerKChars = configService.getDecimal("price_per_kchars");
 
@@ -126,7 +132,7 @@ public class RewriteServiceImpl implements RewriteService {
                     String.format("余额不足，预计扣费 %.4f 元，当前余额 %.4f 元，请充值", estimatedCost, account.getBalance()));
         }
 
-        JSONObject response = rewriteApiClient.paraphraseDocument(file, preset, rewriteApiProperties.getDefaultPresetEn());
+        JSONObject response = rewriteApiClient.paraphraseDocument(file, preset);
         RewriteResultVO result = mapResult(response);
 
         // 用API返回的精确字符数计费
@@ -143,7 +149,8 @@ public class RewriteServiceImpl implements RewriteService {
         RewriteRecord record = new RewriteRecord();
         record.setUserId(user.getId());
         record.setRewriteType("DOCUMENT");
-        record.setRewriteMode(response.getStr("preset_used"));
+        record.setLanguage(language);
+        record.setRewriteMode(presetName);
         record.setOriginalFilename(response.getStr("original_filename"));
         record.setParaphrasedFilename(extractFilename(response.getStr("paraphrased_url")));
         record.setOriginalFileUrl(response.getStr("original_url"));
@@ -154,6 +161,7 @@ public class RewriteServiceImpl implements RewriteService {
         record.setBalanceBefore(balanceBefore);
         record.setBalanceAfter(updated.getBalance());
         rewriteRecordMapper.insert(record);
+        result.setRecordId(record.getId());
         result.setCost(userCost);
         result.setActualCost(userCost);
         result.setRemainingBalance(updated.getBalance());
@@ -165,6 +173,33 @@ public class RewriteServiceImpl implements RewriteService {
         return rewriteRecordMapper.selectList(new LambdaQueryWrapper<RewriteRecord>()
                 .eq(RewriteRecord::getUserId, user.getId())
                 .orderByDesc(RewriteRecord::getCreateTime));
+    }
+
+    @Override
+    public byte[] downloadRecord(SysUser user, Long recordId, String type) {
+        RewriteRecord record = rewriteRecordMapper.selectOne(new LambdaQueryWrapper<RewriteRecord>()
+                .eq(RewriteRecord::getId, recordId)
+                .eq(RewriteRecord::getUserId, user.getId()));
+        if (record == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "记录不存在");
+        }
+        String text = "original".equals(type) ? record.getOriginalText() : record.getParaphrasedText();
+        try (XWPFDocument doc = new XWPFDocument();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            if (text != null) {
+                for (String line : text.split("\n")) {
+                    XWPFParagraph p = doc.createParagraph();
+                    XWPFRun run = p.createRun();
+                    run.setText(line);
+                    run.setFontSize(12);
+                    run.setFontFamily("宋体");
+                }
+            }
+            doc.write(out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.SYSTEM_ERROR, "生成文件失败");
+        }
     }
 
     private RewriteResultVO mapResult(JSONObject response) {

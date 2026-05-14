@@ -11,4 +11,6 @@ public class TextRewriteRequest {
 
     @NotBlank(message = "预设不能为空")
     private String preset;
+
+    private String language;
 }

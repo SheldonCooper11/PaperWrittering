@@ -1,6 +1,6 @@
 <template>
   <header class="topbar">
-    <RouterLink class="brand" to="/">一触即改 写作牛 <span class="icon">🦅</span></RouterLink>
+    <RouterLink class="brand" to="/">有道写作</RouterLink>
     <nav class="nav">
       <RouterLink to="/rewrite">降重/降AI率/检测AI率 🔥</RouterLink>
       <RouterLink to="/records">改写记录</RouterLink>
@@ -18,11 +18,11 @@
       </el-dropdown>
     </nav>
   </header>
-  <div class="float-service"><div class="grid">▦</div><span>加群</span></div>
+  <div class="float-service" @mouseenter="showKefu = true" @mouseleave="showKefu = false"><div class="grid">💬</div><span>客服</span><div class="kefu-popup" v-show="showKefu"><img src="/kefu.png" alt="客服二维码" /><p>扫码添加客服</p></div></div>
   <section class="hero">
     <div class="network"><canvas ref="canvasRef"></canvas></div>
     <div class="content">
-      <h1 class="title">一触即改 写作牛</h1>
+      <h1 class="title">有道写作</h1>
       <p class="sub">智能论文助手，让论文写作更轻松。快速去重，降低AI特征，数据可视化，一站式解决论文查重难题。</p>
       <div class="cards">
         <div class="card"><div class="icon-box">🧐</div><h3>专业模型</h3><p>基于AI大语言模型，对上下文语境深度理解降重</p></div>
@@ -60,10 +60,11 @@ import AnnouncementBell from '@/components/AnnouncementBell.vue'
 
 const userStore = useUserStore()
 const canvasRef = ref(null)
+const showKefu = ref(false)
 const feedbacks = [
-  { name: '张同学', major: '计算机科学与技术', text: '一触即改帮我快速检查了论文中的重复内容，节省了很多时间。AI降重功能让我的论文表达更加自然，导师也给了很好的评价。' },
-  { name: '李同学', major: '人工智能', text: '作为一名研究生，经常需要写论文。一触即改的数据可视化功能帮助我更好地理解论文结构，让写作过程更加顺畅。' },
-  { name: '王同学', major: '机器学习', text: '论文查重和降重一直是我的痛点，一触即改完美解决了这个问题。它的去重和降重功能非常强大，让我的论文质量有了很大提升。' },
+  { name: '张同学', major: '计算机科学与技术', text: '有道写作帮我快速检查了论文中的重复内容，节省了很多时间。AI降重功能让我的论文表达更加自然，导师也给了很好的评价。' },
+  { name: '李同学', major: '人工智能', text: '作为一名研究生，经常需要写论文。有道写作的数据可视化功能帮助我更好地理解论文结构，让写作过程更加顺畅。' },
+  { name: '王同学', major: '机器学习', text: '论文查重和降重一直是我的痛点，有道写作完美解决了这个问题。它的去重和降重功能非常强大，让我的论文质量有了很大提升。' },
 ]
 const cases = [
   { title: '案例 1', tag: '去重', before: '本研究采用深度学习技术对图像进行分类。本研究采用深度学习技术对图像进行分类。本研究采用深度学习技术对图像进行分类。', after: '本研究采用深度学习技术对图像进行分类。通过构建卷积神经网络模型，实现了对输入图像的精确分类。实验结果表明，该方法在多个数据集上都取得了优异的性能。' },
