@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
-const request = axios.create({ baseURL: '/api', timeout: 120000 })
+const request = axios.create({ baseURL: '/api', timeout: 300000 })
 
 request.interceptors.request.use((config) => {
   const token = localStorage.getItem('admin_token')
