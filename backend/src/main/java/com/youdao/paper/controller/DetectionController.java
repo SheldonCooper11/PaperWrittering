@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -40,5 +41,20 @@ public class DetectionController {
             return ResultVO.fail("PARAM_ERROR", "请选择检测平台");
         }
         return ResultVO.success(detectionService.check(user, text, taskPlatform));
+    }
+
+    @PostMapping("/check-file")
+    public ResultVO<?> checkFile(@RequestAttribute("currentUser") SysUser user,
+                                 @RequestParam("file") MultipartFile file,
+                                 @RequestParam("task_platform") String taskPlatform,
+                                 @RequestParam(value = "title", required = false) String title,
+                                 @RequestParam(value = "author", required = false) String author) {
+        if (file == null || file.isEmpty()) {
+            return ResultVO.fail("PARAM_ERROR", "请上传文件");
+        }
+        if (taskPlatform == null || taskPlatform.isBlank()) {
+            return ResultVO.fail("PARAM_ERROR", "请选择检测平台");
+        }
+        return ResultVO.success(detectionService.checkFile(user, file, taskPlatform, title, author));
     }
 }

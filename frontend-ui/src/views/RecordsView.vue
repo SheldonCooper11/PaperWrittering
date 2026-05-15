@@ -58,14 +58,25 @@
   </div>
 
   <!-- 预览弹窗 -->
-  <el-dialog v-model="previewVisible" title="预览" width="700px" :close-on-click-modal="true">
-    <div class="preview-body">{{ previewText?.paraphrasedText }}</div>
-    <template #footer><el-button @click="previewVisible = false">关闭</el-button></template>
+  <el-dialog v-model="previewVisible" width="1000px" :close-on-click-modal="true" class="preview-dialog">
+    <template #header>
+      <div class="preview-header"><span class="preview-title">预览</span><span class="preview-close" @click="previewVisible = false">×</span></div>
+    </template>
+    <div class="preview-section">
+      <div class="preview-section-head"><span>原文</span><div class="preview-tools"><span class="preview-tool" @click="copyText(previewText?.originalText)"><el-icon><DocumentCopy /></el-icon> 复制</span><span class="preview-tool" @click="downloadPreviewDoc(previewText?.id, 'original')"><el-icon><Download /></el-icon> 下载DOCX</span></div></div>
+      <div class="preview-text-box">{{ previewText?.originalText }}</div>
+    </div>
+    <div class="preview-section">
+      <div class="preview-section-head"><span>结果</span><div class="preview-tools"><span class="preview-tool" @click="copyText(previewText?.paraphrasedText)"><el-icon><DocumentCopy /></el-icon> 复制</span><span class="preview-tool blue" @click="downloadPreviewDoc(previewText?.id, 'result')"><el-icon><Download /></el-icon> 下载DOCX</span></div></div>
+      <div class="preview-text-box preview-result-box">{{ previewText?.paraphrasedText }}</div>
+    </div>
   </el-dialog>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { DocumentCopy, Download } from '@element-plus/icons-vue'
 import { rewriteRecords } from '@/api/rewrite'
 import { useUserStore } from '@/stores/user'
 import AnnouncementBell from '@/components/AnnouncementBell.vue'
@@ -125,6 +136,38 @@ const downloadResult = (r) => {
       URL.revokeObjectURL(url)
     })
 }
+
+const copyText = (text) => {
+  if (!text) return
+  try {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    ElMessage.success('已复制到剪贴板')
+  } catch {
+    ElMessage.error('复制失败')
+  }
+}
+
+const downloadPreviewDoc = (id, type) => {
+  if (!id) return
+  const token = localStorage.getItem('user_token')
+  fetch(`/api/rewrite/records/${id}/download?type=${type}`, { headers: { Authorization: token } })
+    .then(res => res.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = (type === 'original' ? '原文' : '改写结果') + '.docx'
+      a.click()
+      URL.revokeObjectURL(url)
+    })
+}
 </script>
 
 <style scoped>
@@ -152,6 +195,16 @@ const downloadResult = (r) => {
 .field-label{font-size:14px;color:#8a96ad;margin-bottom:5px}
 .field-value{font-size:15px;color:#07142f;line-height:1.45}
 .price{color:#3633ff;font-weight:800}
-.preview-body{max-height:500px;overflow-y:auto;white-space:pre-wrap;line-height:1.8;font-size:15px;color:#333}
+.preview-header{display:flex;align-items:center;justify-content:space-between;width:100%}
+.preview-title{font-size:20px;font-weight:600}
+.preview-close{width:28px;height:28px;border-radius:4px;background:#eef0f2;color:#555;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1}
+.preview-section{margin-bottom:16px}
+.preview-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;color:#6b7280;font-size:15px;font-weight:700}
+.preview-tools{display:flex;gap:24px;align-items:center}
+.preview-tool{display:inline-flex;align-items:center;gap:4px;cursor:pointer;color:#4b5563;font-size:14px;font-weight:400;user-select:none}
+.preview-tool:hover{color:#5545eb}
+.preview-tool.blue{color:#4c45ff}
+.preview-text-box{border:1px solid #edf0f4;border-radius:8px;background:#fafafa;padding:14px 16px;font-size:15px;line-height:1.7;color:#374151;max-height:260px;overflow-y:auto;white-space:pre-wrap}
+.preview-result-box{border:1px solid #b9efcf;background:#ecfff6}
 @media(max-width:900px){.page{padding:14px}.panel{padding:18px}.info-box{grid-template-columns:1fr}.actions{flex-wrap:wrap}}
 </style>

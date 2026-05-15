@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class DetectionResultVO {
@@ -18,6 +19,10 @@ public class DetectionResultVO {
     private BigDecimal userCost;
     private BigDecimal balanceBefore;
     private BigDecimal remainingBalance;
+
+    private String fileName;
+    private String language;
+    private Map<String, String> reportFiles;
 
     @Data
     public static class Segment {

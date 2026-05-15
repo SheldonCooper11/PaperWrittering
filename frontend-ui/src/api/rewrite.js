@@ -12,3 +12,6 @@ export const fetchPresets = (module, platform, language) => request.get('/rewrit
 export const fetchPlatforms = (module, language) => request.get('/rewrite/platforms', { params: { module, language } })
 export const fetchDetectionOptions = (language) => request.get('/detection/options', { params: { language } })
 export const checkDetection = (data) => request.post('/detection/check', data)
+export const checkDetectionFile = (data) => request.post('/detection/check-file', data, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+})
