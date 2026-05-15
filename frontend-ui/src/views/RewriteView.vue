@@ -70,29 +70,25 @@
         </template>
         <template v-else>
           <div v-if="loading" class="progress-box"><div class="progress-ring"></div><p class="progress-text">{{ loadingText }}</p></div>
-          <div class="detection-result" v-else-if="result && result.score !== undefined">
-            <div class="result-top">
-              <div class="score-ring" :style="scoreRingStyle"><div class="score-inner">{{ result.score != null ? result.score.toFixed(1) : '-' }}<span>%</span></div></div>
-              <div class="level-tag" :class="riskClass">{{ result.level || '未知' }}</div>
-            </div>
-            <div class="detection-meta">
-              <div class="dm-row"><span>最高分</span><span>{{ result.maxScore }}</span></div>
-              <div class="dm-row"><span>字符数</span><span>{{ result.totalChars }}</span></div>
-              <div class="dm-row"><span>扣费</span><span>{{ result.userCost }} 元</span></div>
-              <div class="dm-row"><span>剩余</span><span>{{ result.remainingBalance }} 元</span></div>
-            </div>
-            <div class="segments" v-if="result.segments && result.segments.length">
-              <h4>逐段分析</h4>
-              <div class="seg-item" v-for="(seg, i) in result.segments" :key="i">
-                <span class="seg-label" :class="segLabelClass(seg.label)">{{ seg.label }}</span>
-                <span class="seg-text">{{ seg.segment }}</span>
+          <template v-else-if="result && result.score !== undefined">
+            <div class="detection-result">
+              <div class="result-top">
+                <div class="score-ring" :style="scoreRingStyle"><div class="score-inner">{{ result.score != null ? result.score.toFixed(1) : '-' }}<span>%</span></div></div>
+                <div class="level-tag" :class="riskClass">{{ result.level || '未知' }}</div>
+              </div>
+              <div class="segments" v-if="result.segments && result.segments.length">
+                <h4>逐段分析</h4>
+                <div class="seg-item" v-for="(seg, i) in result.segments" :key="i">
+                  <span class="seg-label" :class="segLabelClass(seg.label)">{{ seg.label }}</span>
+                  <span class="seg-text">{{ seg.segment }}</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div v-if="result && result.score !== undefined && result.reportFiles?.html_detail_url" class="result-bar">
-            <a class="btn primary" :href="result.reportFiles.html_detail_url" target="_blank" style="margin-left:auto"><el-icon><Download /></el-icon> 查看检测报告</a>
-          </div>
-          <div v-else-if="!loading" class="empty"><div class="doc">📄</div><h4>当前暂无检测结果</h4><p>请在左侧输入文本并点击开始检测</p></div>
+            <div v-if="result.reportFiles?.html_detail_url" class="result-bar">
+              <a class="btn primary" :href="result.reportFiles.html_detail_url" target="_blank" style="margin-left:auto"><el-icon><Download /></el-icon> 查看检测报告</a>
+            </div>
+          </template>
+          <div v-else class="empty"><div class="doc">📄</div><h4>当前暂无检测结果</h4><p>请在左侧输入文本并点击开始检测</p></div>
         </template>
       </div>
     </section>
@@ -352,6 +348,33 @@ const handleTextRewrite = async () => {
       ElMessageBox.alert(msg, '余额不足', { confirmButtonText: '去充值', type: 'warning' })
     }
   } finally { loading.value = false; loadingType.value = '' }
+
+  // AI率大于20%建议重新生成（loading结束后再弹）
+  if (result.value?.paraphrasedText && result.value?.aiScore > 20) {
+    const retryText = result.value.paraphrasedText
+    try {
+      await ElMessageBox.confirm(
+        `当前改写结果AI率仍为 ${result.value.aiScore.toFixed(1)}%，建议重新生成以进一步降低AI率（本次不收费），是否重新生成？`,
+        '建议重新生成',
+        { confirmButtonText: '重新生成', cancelButtonText: '暂不需要', type: 'warning' }
+      )
+      loading.value = true
+      loadingType.value = 'text-rewrite'
+      result.value = null
+      try {
+        const retryResult = await rewriteText({ text: retryText, preset: selectedPreset.value, language: language.value, free: true })
+        result.value = retryResult
+        const detPlat = matchDetectionPlatform()
+        if (detPlat) {
+          try {
+            const aiResult = await checkDetection({ text: retryResult.paraphrasedText, task_platform: detPlat })
+            result.value.aiScore = aiResult.score
+            result.value.aiLevel = aiResult.level
+          } catch { /* ignore */ }
+        }
+      } finally { loading.value = false; loadingType.value = '' }
+    } catch { /* 用户取消或重新生成失败 */ }
+  }
 }
 const handleFileRewrite = async () => {
   if (!userStore.token) return ElMessage.warning('请先登录')
@@ -386,6 +409,7 @@ const handleFileRewrite = async () => {
 
   loading.value = true
   loadingType.value = 'document-rewrite'
+  result.value = null
   try {
     const formData = new FormData()
     formData.append('file', file.value)
@@ -407,6 +431,17 @@ const handleDetection = async () => {
   if (!userStore.token) return ElMessage.warning('请先登录')
   if (!text.value.trim()) return ElMessage.warning('请输入需要检测的文本')
   if (!detectionPlatform.value) return ElMessage.warning('请选择检测平台')
+
+  const charCount = text.value.length
+  const estimatedCost = (charCount / 1000 * 1.5).toFixed(2)
+  try {
+    await ElMessageBox.confirm(
+      `文本共 ${charCount} 个字符，预计费用约 ${estimatedCost} 元，是否继续？`,
+      '确认检测',
+      { confirmButtonText: '继续', cancelButtonText: '取消', type: 'info' }
+    )
+  } catch { return }
+
   loading.value = true
   loadingType.value = 'detection-text'
   try {
@@ -445,9 +480,18 @@ const showDetectionFileDialog = () => {
   if (!userStore.token) return ElMessage.warning('请先登录')
   if (!detectionFile.value) return ElMessage.warning('请先选择文件')
   if (!detectionPlatform.value) return ElMessage.warning('请选择检测平台')
-  detectionTitle.value = ''
-  detectionAuthor.value = ''
-  detectionFileDialogVisible.value = true
+
+  const estimatedChars = Math.max(Math.round(detectionFile.value.size / 2), 100)
+  const estimatedCost = (estimatedChars / 1000 * 1.5).toFixed(2)
+  ElMessageBox.confirm(
+    `文件预估 ${estimatedChars} 个字符，预计费用约 ${estimatedCost} 元，是否继续？`,
+    '确认检测',
+    { confirmButtonText: '继续', cancelButtonText: '取消', type: 'info' }
+  ).then(() => {
+    detectionTitle.value = ''
+    detectionAuthor.value = ''
+    detectionFileDialogVisible.value = true
+  }).catch(() => {})
 }
 const confirmDetectionFile = () => {
   const title = detectionTitle.value

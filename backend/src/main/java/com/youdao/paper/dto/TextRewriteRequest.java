@@ -13,4 +13,5 @@ public class TextRewriteRequest {
     private String preset;
 
     private String language;
+    private boolean free;
 }

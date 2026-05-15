@@ -56,30 +56,41 @@ public class RewriteServiceImpl implements RewriteService {
     public RewriteResultVO rewriteText(SysUser user, TextRewriteRequest request) {
         UserAccount account = accountService.getOrCreateAccount(user.getId());
         BigDecimal pricePerKChars = configService.getDecimal("price_per_kchars");
+        boolean isFree = request.isFree();
 
-        // 预计算费用，余额不够直接拒绝
-        int estimatedChars = request.getText().length();
-        BigDecimal estimatedCost = BigDecimal.valueOf(estimatedChars)
-                .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
-                .multiply(pricePerKChars)
-                .setScale(4, RoundingMode.HALF_UP);
-        if (account.getBalance().compareTo(estimatedCost) < 0) {
-            throw new BusinessException(ResultCode.USER_ERROR,
-                    String.format("余额不足，预计扣费 %.4f 元，当前余额 %.4f 元，请充值", estimatedCost, account.getBalance()));
+        if (!isFree) {
+            int estimatedChars = request.getText().length();
+            BigDecimal estimatedCost = BigDecimal.valueOf(estimatedChars)
+                    .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
+                    .multiply(pricePerKChars)
+                    .setScale(4, RoundingMode.HALF_UP);
+            if (account.getBalance().compareTo(estimatedCost) < 0) {
+                throw new BusinessException(ResultCode.USER_ERROR,
+                        String.format("余额不足，预计扣费 %.4f 元，当前余额 %.4f 元，请充值", estimatedCost, account.getBalance()));
+            }
         }
 
         JSONObject response = rewriteApiClient.paraphraseText(request.getText(), request.getPreset());
         RewriteResultVO result = mapResult(response);
 
-        // 用API返回的精确字符数计费
-        int charCount = response.getInt("characters_count", estimatedChars);
-        BigDecimal userCost = BigDecimal.valueOf(charCount)
-                .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
-                .multiply(pricePerKChars)
-                .setScale(4, RoundingMode.HALF_UP);
+        int charCount = response.getInt("characters_count", request.getText().length());
+        BigDecimal userCost;
+        BigDecimal balanceBefore;
+        UserAccount updated;
 
-        BigDecimal balanceBefore = account.getBalance();
-        UserAccount updated = accountService.deductBalance(user.getId(), userCost);
+        if (isFree) {
+            userCost = BigDecimal.ZERO;
+            balanceBefore = account.getBalance();
+            updated = account;
+        } else {
+            userCost = BigDecimal.valueOf(charCount)
+                    .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
+                    .multiply(pricePerKChars)
+                    .setScale(4, RoundingMode.HALF_UP);
+            balanceBefore = account.getBalance();
+            updated = accountService.deductBalance(user.getId(), userCost);
+        }
+
         RewriteRecord record = new RewriteRecord();
         record.setUserId(user.getId());
         record.setRewriteType("TEXT");
