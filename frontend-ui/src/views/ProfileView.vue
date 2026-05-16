@@ -6,6 +6,7 @@
       <RouterLink to="/records">改写记录</RouterLink>
       <RouterLink to="/redeem">卡密兑换</RouterLink>
       <AnnouncementBell />
+      <span v-if="userStore.token && userStore.userInfo?.balance != null" class="balance">余额 ¥{{ Number(userStore.userInfo.balance).toFixed(2) }}</span>
       <el-dropdown v-if="userStore.token" trigger="click">
         <span class="login username">{{ userStore.userInfo?.username }} ▾</span>
         <template #dropdown>
@@ -25,7 +26,6 @@
         <el-descriptions-item label="用户名">{{ userInfo?.username }}</el-descriptions-item>
         <el-descriptions-item label="手机号">{{ userInfo?.phone || '未绑定' }}</el-descriptions-item>
         <el-descriptions-item label="余额">{{ userInfo?.balance ?? 0 }} 元</el-descriptions-item>
-        <el-descriptions-item label="角色">{{ userInfo?.role === 'ADMIN' ? '管理员' : '普通用户' }}</el-descriptions-item>
       </el-descriptions>
     </div>
     <div class="profile-card">

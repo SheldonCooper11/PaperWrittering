@@ -12,6 +12,5 @@ public class RewriteApiProperties {
     private String apiKey;
     private String textUrl;
     private String documentUrl;
-    private String defaultPresetEn = "aimove_weipu_english";
     private String detectionUrl = "https://rapi.ycjg.top/api/v2/detection";
 }

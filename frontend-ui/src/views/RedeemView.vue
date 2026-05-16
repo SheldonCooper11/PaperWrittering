@@ -6,6 +6,7 @@
       <RouterLink to="/records">改写记录</RouterLink>
       <RouterLink class="active" to="/redeem">卡密兑换</RouterLink>
       <AnnouncementBell />
+      <span v-if="userStore.token && userStore.userInfo?.balance != null" class="balance">余额 ¥{{ Number(userStore.userInfo.balance).toFixed(2) }}</span>
       <el-dropdown v-if="userStore.token" trigger="click">
         <span class="login username">{{ userStore.userInfo?.username }} ▾</span>
         <template #dropdown>
