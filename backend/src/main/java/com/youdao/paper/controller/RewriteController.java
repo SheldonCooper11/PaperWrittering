@@ -7,6 +7,7 @@ import com.youdao.paper.entity.Preset;
 import com.youdao.paper.entity.RewriteRecord;
 import com.youdao.paper.entity.SysUser;
 import com.youdao.paper.exception.BusinessException;
+import com.youdao.paper.service.ConfigService;
 import com.youdao.paper.service.PresetService;
 import com.youdao.paper.service.RewriteService;
 import com.youdao.paper.util.DocumentCharCounter;
@@ -37,10 +38,12 @@ public class RewriteController {
 
     private final RewriteService rewriteService;
     private final PresetService presetService;
+    private final ConfigService configService;
 
-    public RewriteController(RewriteService rewriteService, PresetService presetService) {
+    public RewriteController(RewriteService rewriteService, PresetService presetService, ConfigService configService) {
         this.rewriteService = rewriteService;
         this.presetService = presetService;
+        this.configService = configService;
     }
 
     @PostMapping("/text")
@@ -51,11 +54,12 @@ public class RewriteController {
 
     @PostMapping("/document/precheck")
     public ResultVO<Map<String, Object>> precheckDocument(@RequestAttribute("currentUser") SysUser user,
-                                                          @RequestParam("file") MultipartFile file) {
+                                                          @RequestParam("file") MultipartFile file,
+                                                          @RequestParam String module) {
         if (!DocumentCharCounter.isSupported(file)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "仅支持 .docx 和 .txt 格式");
         }
-        return ResultVO.success(rewriteService.precheckDocument(user, file));
+        return ResultVO.success(rewriteService.precheckDocument(user, file, module));
     }
 
     @PostMapping("/document")
@@ -63,11 +67,21 @@ public class RewriteController {
                                                      @RequestParam("file") MultipartFile file,
                                                      @RequestParam String preset,
                                                      @RequestParam String language,
-                                                     @RequestParam String presetName) {
+                                                     @RequestParam String presetName,
+                                                     @RequestParam String module) {
         if (!DocumentCharCounter.isSupported(file)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "仅支持 .docx 和 .txt 格式");
         }
-        return ResultVO.success(rewriteService.rewriteDocument(user, file, preset, language, presetName));
+        return ResultVO.success(rewriteService.rewriteDocument(user, file, preset, language, presetName, module));
+    }
+
+    @GetMapping("/prices")
+    public ResultVO<Map<String, String>> prices() {
+        Map<String, String> map = new java.util.LinkedHashMap<>();
+        map.put("repeat_reduce", configService.get("price_repeat"));
+        map.put("ai_reduce", configService.get("price_ai"));
+        map.put("dual_reduce", configService.get("price_dual"));
+        return ResultVO.success(map);
     }
 
     @GetMapping("/records")

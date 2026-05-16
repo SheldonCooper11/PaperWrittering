@@ -61,7 +61,10 @@ public class ConfigService {
 
     private void ensureDefaults() {
         setIfMissing("min_balance", "1.0", "最低余额阈值");
-        setIfMissing("price_per_kchars", "1.5", "每千字单价(元)");
+        setIfMissing("price_per_kchars", "1.5", "每千字单价(元)-默认");
+        setIfMissing("price_repeat", "1.5", "降重功能每千字单价(元)");
+        setIfMissing("price_ai", "1.5", "降AI功能每千字单价(元)");
+        setIfMissing("price_dual", "1.5", "双降功能每千字单价(元)");
     }
 
     private void setIfMissing(String key, String defaultVal, String desc) {

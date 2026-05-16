@@ -2,7 +2,7 @@
   <header class="topbar"><RouterLink class="brand" to="/">有道写作</RouterLink><nav class="nav"><RouterLink class="active" to="/rewrite">降重/降AI率/检测AI率 🔥</RouterLink><RouterLink to="/records">改写记录</RouterLink><RouterLink to="/redeem">卡密兑换</RouterLink><AnnouncementBell /><span v-if="userStore.token && userStore.userInfo?.balance != null" class="balance">余额 ¥{{ Number(userStore.userInfo.balance).toFixed(2) }}</span><RouterLink v-if="!userStore.token" class="login" to="/login">登录/注册</RouterLink><el-dropdown v-else trigger="click"><span class="login username">{{ userStore.userInfo?.username }} ▾</span><template #dropdown><el-dropdown-menu><el-dropdown-item @click="$router.push('/profile')">个人中心</el-dropdown-item><el-dropdown-item @click="userStore.logout(); $router.push('/')">退出登录</el-dropdown-item></el-dropdown-menu></template></el-dropdown></nav></header>
   <div class="float-service" @mouseenter="showKefu = true" @mouseleave="showKefu = false"><div class="grid">💬</div><span>客服</span><div class="kefu-popup" v-show="showKefu"><img src="/kefu.png" alt="客服二维码" /><p>扫码添加客服</p></div></div>
   <main class="wrap">
-    <section class="feature-area"><div class="feature-cards"><div class="feature-card" :class="{selected: mode === item.value}" v-for="item in modes" :key="item.value" @click="onModeChange(item.value)"><h3>{{ item.icon }} {{ item.title }}</h3><p>{{ item.desc }}</p><span class="price">1.5元/1000字</span></div></div></section>
+    <section class="feature-area"><div class="feature-cards"><div class="feature-card" :class="{selected: mode === item.value}" v-for="item in modes" :key="item.value" @click="onModeChange(item.value)"><h3><el-icon class="mode-icon"><EditPen /></el-icon> {{ item.title }}</h3><p>{{ item.desc }}</p><span class="price">{{ (prices[modeToModule[item.value]] || 1.5) }}元/1000字</span></div></div></section>
 
     <section class="filters">
       <template v-if="!isDetection">
@@ -111,18 +111,18 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Edit, Upload, Download } from '@element-plus/icons-vue'
-import { precheckDocument, rewriteDocument, rewriteText, fetchPresets, fetchPlatforms, fetchDetectionOptions, checkDetection, checkDetectionFile } from '@/api/rewrite'
+import { Edit, Upload, Download, EditPen } from '@element-plus/icons-vue'
+import { precheckDocument, rewriteDocument, rewriteText, fetchPresets, fetchPlatforms, fetchPrices, fetchDetectionOptions, checkDetection, checkDetectionFile } from '@/api/rewrite'
 import { useUserStore } from '@/stores/user'
 import AnnouncementBell from '@/components/AnnouncementBell.vue'
 
 const userStore = useUserStore()
 const platforms = ref([])
 const modes = [
-  { icon:'📋', title:'降重复率(深度)', value:'降重strong', desc:'全网领先的降重技术，一键大幅降低重复率，保证学术表达' },
-  { icon:'🪄', title:'降AI率', value:'降AI', desc:'优化文本内容，降低AI生成痕迹，使文章更具人文特色' },
-  { icon:'🧾', title:'降重+降AIGC', value:'双降', desc:'同时降低重复率和AI生成痕迹，全面提升文章质量' },
-  // { icon:'🧾', title:'AI率预测', value:'降低AIplus', desc:'选择对应的算法，比如对应平台更为严格，只要在10%内，基本通过对应的所有平台' },
+  { title:'降重复率(深度)', value:'降重strong', desc:'全网领先的降重技术，一键大幅降低重复率，保证学术表达' },
+  { title:'降AI率', value:'降AI', desc:'优化文本内容，降低AI生成痕迹，使文章更具人文特色' },
+  { title:'降重+降AIGC', value:'双降', desc:'同时降低重复率和AI生成痕迹，全面提升文章质量' },
+  // { title:'AI率预测', value:'降低AIplus', desc:'选择对应的算法，比如对应平台更为严格，只要在10%内，基本通过对应的所有平台' },
 ]
 
 const modeToModule = {
@@ -302,6 +302,16 @@ const matchDetectionPlatform = () => {
 
 refreshModule(modeToModule[mode.value])
 loadDetectionPlatforms('zh')
+const prices = ref({})
+const loadPrices = async () => {
+  try { prices.value = await fetchPrices() } catch { /* ignore */ }
+}
+const currentPrice = computed(() => {
+  const module = modeToModule[mode.value]
+  if (!module || !prices.value[module]) return 1.5
+  return Number(prices.value[module])
+})
+loadPrices()
 onMounted(async () => {
   if (userStore.token) await userStore.refreshBalance()
 })
@@ -318,7 +328,7 @@ const handleTextRewrite = async () => {
   if (!selectedPreset.value) return ElMessage.warning('请选择改写模式')
 
   const charCount = text.value.length
-  const estimatedCost = (charCount / 1000 * 1.5).toFixed(2)
+  const estimatedCost = (charCount / 1000 * currentPrice.value).toFixed(2)
   try {
     await ElMessageBox.confirm(
       `文本共 ${charCount} 个字符，预计费用约 ${estimatedCost} 元，具体以实际处理为准，是否继续？`,
@@ -332,8 +342,9 @@ const handleTextRewrite = async () => {
   loading.value = true
   loadingType.value = 'text-rewrite'
   result.value = null
+  const currentModule = modeToModule[mode.value]
   try {
-    result.value = await rewriteText({ text: text.value, preset: selectedPreset.value, language: language.value })
+    result.value = await rewriteText({ text: text.value, preset: selectedPreset.value, language: language.value, module: currentModule })
     await userStore.refreshBalance()
     // 改写完成后调用AI检测接口，根据用户选择的改写平台匹配检测平台
     const detPlat = matchDetectionPlatform()
@@ -358,7 +369,7 @@ const handleTextRewrite = async () => {
       const retryText = result.value.paraphrasedText
       try {
         await ElMessageBox.confirm(
-          `当前改写结果AI率仍为 ${result.value.aiScore.toFixed(1)}%，建议重新生成以进一步降低AI率（本次不收费），是否重新生成？`,
+          `当前改写结果AI率仍为 ${result.value.aiScore.toFixed(1)}%，建议重新生成以进一步降低AI率（本次不收费），是否重新生成？如重新生成后AI率仍高，请尝试切换改写模式。`,
           '建议重新生成',
           { confirmButtonText: '重新生成', cancelButtonText: '暂不需要', type: 'warning' }
         )
@@ -366,7 +377,7 @@ const handleTextRewrite = async () => {
         loadingType.value = 'text-rewrite'
         result.value = null
         try {
-          const retryResult = await rewriteText({ text: retryText, preset: selectedPreset.value, language: language.value, free: true })
+          const retryResult = await rewriteText({ text: retryText, preset: selectedPreset.value, language: language.value, free: true, module: currentModule })
           result.value = retryResult
           const detPlat = matchDetectionPlatform()
           if (detPlat) {
@@ -398,6 +409,7 @@ const handleFileRewrite = async () => {
   try {
     const preForm = new FormData()
     preForm.append('file', file.value)
+    preForm.append('module', modeToModule[mode.value])
     const pre = await precheckDocument(preForm)
     const { charCount, estimatedCost, balance } = pre
 
@@ -431,6 +443,7 @@ const handleFileRewrite = async () => {
     formData.append('language', language.value)
     const presetName = presets.value.find(p => p.code === selectedPreset.value)?.name || selectedPreset.value
     formData.append('presetName', presetName)
+    formData.append('module', modeToModule[mode.value])
     result.value = await rewriteDocument(formData)
     await userStore.refreshBalance()
   } catch (e) {
@@ -567,7 +580,7 @@ const downloadTextResult = () => {
 </script>
 
 <style scoped>
-.wrap{width:1120px;margin:0 auto;background:#fff;min-height:calc(100vh - 68px)}.feature-area{background:linear-gradient(135deg,#2c3e8f,#1a2772);padding:24px 22px 22px}.feature-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.feature-card{min-height:112px;background:#fff;border-radius:12px;padding:18px 16px 16px;box-shadow:0 2px 8px rgba(0,0,0,.06);position:relative;cursor:pointer;transition:transform .2s,box-shadow .2s;border:2px solid transparent}.feature-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(44,62,143,.15)}.feature-card:active{transform:scale(.97)}.feature-card.selected{border-color:#2c3e8f;box-shadow:0 4px 20px rgba(44,62,143,.18)}.feature-card.selected:after{content:"✓";position:absolute;right:10px;top:10px;width:22px;height:22px;border-radius:50%;background:#2c3e8f;color:#fff;text-align:center;line-height:22px;font-weight:800;font-size:13px}.feature-card h3{font-size:18px;margin-bottom:10px;color:#1a2772;display:flex;gap:8px;align-items:center}.feature-card p{font-size:13px;line-height:1.6;color:#555}.feature-card .price{font-size:12px;color:#e67e22;font-weight:600;display:block;margin-top:6px}.filters{background:#eef2ff;padding:16px 18px 18px;font-size:14px;color:#333}.row{display:flex;align-items:center;gap:12px;margin-bottom:14px}.label{color:#444;margin-right:2px}.pill{padding:5px 8px;border-radius:4px;cursor:pointer}.pill.active{background:#2c3e8f;color:#fff}.platforms{display:flex;gap:18px;flex-wrap:wrap}.preset-pill{position:relative;max-width:320px;overflow:visible;white-space:nowrap;text-overflow:ellipsis;line-height:1.6;cursor:pointer;transition:background .15s;padding:5px 10px;border-radius:4px}.preset-pill:hover{background:#dce0f0}.preset-pill.active{background:#2c3e8f;color:#fff}.recommend-tag{position:absolute;top:-8px;right:-6px;background:#e74c3c;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;line-height:1.4;pointer-events:none}.select{height:30px;width:320px;border:1px solid #d3d7df;border-radius:4px;background:#fff;color:#555;padding:0 9px}.detection-row .select{width:200px}.static-text{font-size:14px;color:#333;padding:0 8px}.editor{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #e7e7e7;min-height:535px}.left,.right{position:relative;background:#fff}.left{border-right:18px solid #f5f7fb}.tabs{height:46px;display:flex;align-items:center;padding-left:22px;gap:16px;border-bottom:1px solid #e5e5e5}.tab{height:30px;padding:0 18px;border-radius:4px;color:#333;cursor:pointer;display:inline-flex;align-items:center;gap:5px}.tab.active{background:#2c3e8f;color:#fff}.textarea{position:absolute;left:0;right:0;top:46px;bottom:48px;width:100%;border:0;resize:none;padding:28px 16px;font-size:14px;line-height:1.8;outline:none;color:#333;font-family:inherit}.file-zone{position:absolute;left:0;right:0;top:46px;bottom:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px dashed #a8adff;border-radius:8px;margin:8px;background:#fbfcfe;transition:border-color .2s,background .2s}.file-zone.drag-over{border-color:#4b3fe7;background:#eef0ff}.upload-icon{font-size:48px;margin-bottom:8px}.upload-text{font-size:16px;color:#5b6677;margin-bottom:14px}.upload-btn{height:40px;padding:0 24px;font-size:16px;background:#4b3fe7;color:#fff;border:1px solid #4b3fe7;border-radius:6px;cursor:pointer;transition:transform .1s,background .1s}.upload-btn:hover{background:#3d33d0}.upload-btn:active{transform:scale(.95);background:#2c25b0}.upload-tip{color:#999;font-size:12px;margin-top:10px}.file-selected{text-align:center;font-size:18px;color:#07152a}.file-selected-row{display:flex;align-items:center;justify-content:center;gap:28px;margin-bottom:22px}.file-selected .check{font-size:32px;color:#009b74}.file-selected .filename{display:inline-block;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}.btn-delete{background:#fff4f4;border:1.5px solid #ff3150;color:#ff203d;white-space:nowrap;cursor:pointer;transition:transform .1s,background .1s}.btn-delete:hover{background:#ffe8e8}.btn-delete:active{transform:scale(.95);background:#ffd4d4}.bottom-bar{position:absolute;left:0;right:0;bottom:0;height:48px;border-top:1px solid #e5e5e5;display:flex;align-items:center;padding:0 14px}.count{font-size:13px;color:#555}.actions{margin-left:auto;display:flex;gap:10px}.btn{border:1px solid #dfe3ec;background:#f7f8fb;border-radius:5px;padding:8px 18px;color:#444;cursor:pointer;transition:transform .1s,box-shadow .1s,background .1s;user-select:none}.btn:active{transform:scale(.95);background:#e8eaf0}.btn.primary{background:#2c3e8f;border-color:#2c3e8f;color:#fff}.btn.primary:active{transform:scale(.95);background:#1e2a6e;box-shadow:inset 0 2px 6px rgba(0,0,0,.2)}.btn.primary:disabled{opacity:.5;cursor:not-allowed}.btn.primary:disabled:active{transform:none;background:#2c3e8f;box-shadow:none}.result-head{height:46px;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-weight:800}.complete-tip{color:#555;margin:12px 0 20px}
+.wrap{width:1120px;margin:0 auto;background:#fff;min-height:calc(100vh - 68px)}.feature-area{background:linear-gradient(135deg,#2c3e8f,#1a2772);padding:24px 22px 22px}.feature-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.feature-card{min-height:112px;background:#fff;border-radius:12px;padding:18px 16px 16px;box-shadow:0 2px 8px rgba(0,0,0,.06);position:relative;cursor:pointer;transition:transform .2s,box-shadow .2s;border:2px solid transparent}.feature-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(44,62,143,.15)}.feature-card:active{transform:scale(.97)}.feature-card.selected{border-color:#2c3e8f;box-shadow:0 4px 20px rgba(44,62,143,.18)}.feature-card.selected:after{content:"✓";position:absolute;right:10px;top:10px;width:22px;height:22px;border-radius:50%;background:#2c3e8f;color:#fff;text-align:center;line-height:22px;font-weight:800;font-size:13px}.feature-card h3{font-size:18px;margin-bottom:10px;color:#1a2772;display:flex;gap:8px;align-items:center}.mode-icon{font-size:20px;color:#2c3e8f}.feature-card p{font-size:13px;line-height:1.6;color:#555}.feature-card .price{font-size:12px;color:#e67e22;font-weight:600;display:block;margin-top:6px}.filters{background:#eef2ff;padding:16px 18px 18px;font-size:14px;color:#333}.row{display:flex;align-items:center;gap:12px;margin-bottom:14px}.label{color:#444;margin-right:2px}.pill{padding:5px 8px;border-radius:4px;cursor:pointer}.pill.active{background:#2c3e8f;color:#fff}.platforms{display:flex;gap:18px;flex-wrap:wrap}.preset-pill{position:relative;max-width:320px;overflow:visible;white-space:nowrap;text-overflow:ellipsis;line-height:1.6;cursor:pointer;transition:background .15s;padding:5px 10px;border-radius:4px}.preset-pill:hover{background:#dce0f0}.preset-pill.active{background:#2c3e8f;color:#fff}.recommend-tag{position:absolute;top:-8px;right:-6px;background:#e74c3c;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;line-height:1.4;pointer-events:none}.select{height:30px;width:320px;border:1px solid #d3d7df;border-radius:4px;background:#fff;color:#555;padding:0 9px}.detection-row .select{width:200px}.static-text{font-size:14px;color:#333;padding:0 8px}.editor{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #e7e7e7;min-height:535px}.left,.right{position:relative;background:#fff}.left{border-right:18px solid #f5f7fb}.tabs{height:46px;display:flex;align-items:center;padding-left:22px;gap:16px;border-bottom:1px solid #e5e5e5}.tab{height:30px;padding:0 18px;border-radius:4px;color:#333;cursor:pointer;display:inline-flex;align-items:center;gap:5px}.tab.active{background:#2c3e8f;color:#fff}.textarea{position:absolute;left:0;right:0;top:46px;bottom:48px;width:100%;border:0;resize:none;padding:28px 16px;font-size:14px;line-height:1.8;outline:none;color:#333;font-family:inherit}.file-zone{position:absolute;left:0;right:0;top:46px;bottom:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px dashed #a8adff;border-radius:8px;margin:8px;background:#fbfcfe;transition:border-color .2s,background .2s}.file-zone.drag-over{border-color:#4b3fe7;background:#eef0ff}.upload-icon{font-size:48px;margin-bottom:8px}.upload-text{font-size:16px;color:#5b6677;margin-bottom:14px}.upload-btn{height:40px;padding:0 24px;font-size:16px;background:#4b3fe7;color:#fff;border:1px solid #4b3fe7;border-radius:6px;cursor:pointer;transition:transform .1s,background .1s}.upload-btn:hover{background:#3d33d0}.upload-btn:active{transform:scale(.95);background:#2c25b0}.upload-tip{color:#999;font-size:12px;margin-top:10px}.file-selected{text-align:center;font-size:18px;color:#07152a}.file-selected-row{display:flex;align-items:center;justify-content:center;gap:28px;margin-bottom:22px}.file-selected .check{font-size:32px;color:#009b74}.file-selected .filename{display:inline-block;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}.btn-delete{background:#fff4f4;border:1.5px solid #ff3150;color:#ff203d;white-space:nowrap;cursor:pointer;transition:transform .1s,background .1s}.btn-delete:hover{background:#ffe8e8}.btn-delete:active{transform:scale(.95);background:#ffd4d4}.bottom-bar{position:absolute;left:0;right:0;bottom:0;height:48px;border-top:1px solid #e5e5e5;display:flex;align-items:center;padding:0 14px}.count{font-size:13px;color:#555}.actions{margin-left:auto;display:flex;gap:10px}.btn{border:1px solid #dfe3ec;background:#f7f8fb;border-radius:5px;padding:8px 18px;color:#444;cursor:pointer;transition:transform .1s,box-shadow .1s,background .1s;user-select:none}.btn:active{transform:scale(.95);background:#e8eaf0}.btn.primary{background:#2c3e8f;border-color:#2c3e8f;color:#fff}.btn.primary:active{transform:scale(.95);background:#1e2a6e;box-shadow:inset 0 2px 6px rgba(0,0,0,.2)}.btn.primary:disabled{opacity:.5;cursor:not-allowed}.btn.primary:disabled:active{transform:none;background:#2c3e8f;box-shadow:none}.result-head{height:46px;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-weight:800}.complete-tip{color:#555;margin:12px 0 20px}
 .empty{position:absolute;top:245px;left:50%;transform:translateX(-50%);text-align:center;color:#999;white-space:nowrap}.empty .doc{font-size:43px;margin-bottom:18px}.empty h4{font-size:18px;color:#666;margin-bottom:12px;font-weight:500}.empty p{font-size:13px;color:#aaa}.result-content{position:absolute;left:0;right:0;top:46px;bottom:48px;padding:24px 16px;font-size:14px;line-height:1.8;color:#333;overflow-y:auto;background:#fff}.result-content h4{font-size:20px;margin-bottom:14px;color:#5967d9}.result-content p{white-space:pre-wrap}.result-content a{color:#5967d9;font-weight:800}.result-bar{position:absolute;left:0;right:0;bottom:0;height:48px;border-top:1px solid #e5e5e5;display:flex;align-items:center;padding:0 14px}
 .result-bar-actions{display:flex;gap:12px;margin-left:auto}
 .ai-badge{padding:3px 12px;border-radius:12px;font-size:13px;font-weight:700;flex-shrink:0}

@@ -7,6 +7,7 @@ export const precheckDocument = (data) => request.post('/rewrite/document/preche
 export const rewriteDocument = (data) => request.post('/rewrite/document', data, {
   headers: { 'Content-Type': 'multipart/form-data' },
 })
+export const fetchPrices = () => request.get('/rewrite/prices')
 export const rewriteRecords = () => request.get('/rewrite/records')
 export const fetchPresets = (module, platform, language) => request.get('/rewrite/presets', { params: { module, platform, language } })
 export const fetchPlatforms = (module, language) => request.get('/rewrite/platforms', { params: { module, language } })

@@ -13,9 +13,9 @@ public interface RewriteService {
 
     RewriteResultVO rewriteText(SysUser user, TextRewriteRequest request);
 
-    Map<String, Object> precheckDocument(SysUser user, MultipartFile file);
+    Map<String, Object> precheckDocument(SysUser user, MultipartFile file, String module);
 
-    RewriteResultVO rewriteDocument(SysUser user, MultipartFile file, String preset, String language, String presetName);
+    RewriteResultVO rewriteDocument(SysUser user, MultipartFile file, String preset, String language, String presetName, String module);
 
     List<RewriteRecord> records(SysUser user);
 

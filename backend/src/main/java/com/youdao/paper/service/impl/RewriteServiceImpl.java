@@ -52,10 +52,20 @@ public class RewriteServiceImpl implements RewriteService {
         this.configService = configService;
     }
 
+    private BigDecimal getPriceForModule(String module) {
+        String key = switch (module) {
+            case "repeat_reduce" -> "price_repeat";
+            case "ai_reduce" -> "price_ai";
+            case "dual_reduce" -> "price_dual";
+            default -> "price_per_kchars";
+        };
+        return configService.getDecimal(key);
+    }
+
     @Override
     public RewriteResultVO rewriteText(SysUser user, TextRewriteRequest request) {
         UserAccount account = accountService.getOrCreateAccount(user.getId());
-        BigDecimal pricePerKChars = configService.getDecimal("price_per_kchars");
+        BigDecimal pricePerKChars = getPriceForModule(request.getModule());
         boolean isFree = request.isFree();
 
         if (!isFree) {
@@ -111,9 +121,9 @@ public class RewriteServiceImpl implements RewriteService {
     }
 
     @Override
-    public Map<String, Object> precheckDocument(SysUser user, MultipartFile file) {
+    public Map<String, Object> precheckDocument(SysUser user, MultipartFile file, String module) {
         UserAccount account = accountService.getOrCreateAccount(user.getId());
-        BigDecimal pricePerKChars = configService.getDecimal("price_per_kchars");
+        BigDecimal pricePerKChars = getPriceForModule(module);
         int charCount = DocumentCharCounter.count(file);
         BigDecimal estimatedCost = BigDecimal.valueOf(charCount)
                 .divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP)
@@ -127,9 +137,9 @@ public class RewriteServiceImpl implements RewriteService {
     }
 
     @Override
-    public RewriteResultVO rewriteDocument(SysUser user, MultipartFile file, String preset, String language, String presetName) {
+    public RewriteResultVO rewriteDocument(SysUser user, MultipartFile file, String preset, String language, String presetName, String module) {
         UserAccount account = accountService.getOrCreateAccount(user.getId());
-        BigDecimal pricePerKChars = configService.getDecimal("price_per_kchars");
+        BigDecimal pricePerKChars = getPriceForModule(module);
 
         int estimatedChars = DocumentCharCounter.count(file);
         BigDecimal estimatedCost = BigDecimal.valueOf(estimatedChars)

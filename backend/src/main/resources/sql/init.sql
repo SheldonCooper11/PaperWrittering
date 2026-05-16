@@ -66,7 +66,10 @@ CREATE TABLE system_config (
 
 INSERT INTO system_config (config_key, config_value, description) VALUES
 ('min_balance', '1.0', '最低余额(元)：用户余额低于此值时无法改写'),
-('price_per_kchars', '1.5', '每千字单价(元)：实际扣费 = (字符数/1000) × 此单价');
+('price_per_kchars', '1.5', '每千字单价(元)-默认'),
+('price_repeat', '1.5', '降重功能每千字单价(元)'),
+('price_ai', '1.5', '降AI功能每千字单价(元)'),
+('price_dual', '1.5', '双降功能每千字单价(元)');
 
 CREATE TABLE user_account (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
